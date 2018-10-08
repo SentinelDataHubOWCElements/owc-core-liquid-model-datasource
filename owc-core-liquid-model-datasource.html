@@ -1,0 +1,50 @@
+<link rel="import" href="../polymer/polymer-element.html">
+
+<dom-module id="owc-core-liquid-model-datasource">
+  <template>
+    <style>
+      :host {
+        display: block;
+      }
+    </style>
+    <!-- <h2>Hello [[prop1]]!</h2> -->
+  </template>
+
+  <script>
+    /**
+     * `owc-core-liquid-model-datasource`
+     * DataSource
+     *
+     * @customElement
+     * @polymer
+     * @demo demo/index.html
+     */
+    class OwcCoreLiquidModelDatasource extends Polymer.Element {
+      static get is() { return 'owc-core-liquid-model-datasource'; }
+      static get properties() {
+        return {
+          prop1: {
+            type: String,
+            value: 'owc-core-liquid-model-datasource'
+          },
+          datasource: {
+            type: Object,
+            value: {}
+          }
+        };
+      }
+
+      /**
+       * Use for one-time configuration of your component after local DOM is
+       * initialized.
+       */
+      ready() {
+        super.ready();
+        self._ctx = ApplicationContext.getInstance().context;
+        console.warn('datasource ', self._ctx, 'datasource is', self.datasource);
+      }
+    }
+
+    window.customElements.define(OwcCoreLiquidModelDatasource.is, OwcCoreLiquidModelDatasource);
+  </script>
+</dom-module>
