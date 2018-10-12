@@ -1,47 +1,154 @@
 <link rel="import" href="../polymer/polymer-element.html">
 
+<!-- Service -->
 <dom-module id="owc-core-liquid-model-datasource">
-  <template>
-    <style>
-      :host {
-        display: block;
-      }
-    </style>
-    <!-- <h2>Hello [[prop1]]!</h2> -->
-  </template>
+  <template></template>
 
+  <!-- import external js class file -->
+  <script type="text/javascript" src="model/itemModel.js"></script>
   <script>
-    /**
-     * `owc-core-liquid-model-datasource`
-     * DataSource
-     *
-     * @customElement
-     * @polymer
-     * @demo demo/index.html
-     */
     class OwcCoreLiquidModelDatasource extends Polymer.Element {
       static get is() { return 'owc-core-liquid-model-datasource'; }
       static get properties() {
         return {
-          prop1: {
+          baseUrl: {
             type: String,
-            value: 'owc-core-liquid-model-datasource'
+            value: 'default apiUrl'
           },
-          datasource: {
-            type: Object,
-            value: {}
+          apiUrl: {
+            type: String,
+            value: 'default apiUrl'
+          },
+          model: {
+            type: Array,
+            value: []
+          },
+          filterParam: {
+            type: String,
+            value: 'filter'
+          },
+          currentFilter: {
+            type: String,
+            value: 'DEFAULT-FILTER'
+          },
+          currentPage:{
+            type:Number,
+            value: 0
+          },
+          optionsParams: {
+            type: Array,
+            value: ['offset', 'limit', 'sortedby', 'order']
           }
         };
       }
 
-      /**
-       * Use for one-time configuration of your component after local DOM is
-       * initialized.
-       */
       ready() {
         super.ready();
-        self._ctx = ApplicationContext.getInstance().context;
-        console.warn('datasource ', self._ctx, 'datasource is', self.datasource);
+        var self = this;
+        self._ctx = ApplicationContext.getInstance().context; //Context Assignment
+        self.baseUrl = 'https://scihub.copernicus.eu/demohub'; //Get baseUrl information from starter kit component
+        self.apiUrl = '/api/stub/products?';
+      }
+
+      //@Service
+      loadFirstPage(f, l) {
+        var self = this;
+        self.currentFilter = f;
+        self.currentPage = 0;
+        self.currentOffset = 0;
+        self.currentLimit = l;
+        self.getPage(self.currentFilter, 0, l);
+      }
+      
+      //used by list-controller
+      loadHomePage(){
+        var self = this;
+        self.loadFirstPage(self.currentFilter, self.currentLimit);
+      }
+      //@Service
+      loadPreviousPage() {
+        var self = this;
+        if (self.currentPage <= 0){
+          alert("Reached first page!")
+          return;
+        } 
+        
+        self.currentPage--;
+        self.currentOffset = self.currentPage * self.currentLimit;
+        self.currentLimit = self.currentLimit;
+        console.log('loading next page: ',
+          'Sfilter: ', self.currentFilter,
+          'Soffset: ', self.currentOffset,
+          'Slimit: ', self.currentLimit,
+        );
+        self.getPage(self.currentFilter, self.currentOffset, self.currentLimit);
+      }
+
+      //@Service
+      loadNextPage() {
+        var self = this;
+        self.currentPage++;
+        self.currentOffset = self.currentPage * self.currentLimit;
+        self.currentLimit = self.currentLimit;
+        console.log('loading next page: ',
+          'Sfilter: ', self.currentFilter,
+          'Soffset: ', self.currentOffset,
+          'Slimit: ', self.currentLimit,
+        );
+        self.getPage(self.currentFilter, self.currentOffset, self.currentLimit);
+      }
+
+      //@Service
+      //Get a specific page basing on all parameters page
+      getPage(fil, off, lim, sor, ord) {
+        var self = this;
+        console.log('ds getPage, user is logged status: ', self._ctx.am.logged);
+        if (self._ctx.am.logged == false) {//User not logged => push the login component end return
+          self._ctx.wm.pushComponent(document.createElement('owc-ui-login-box'), "150px", "Login Title");
+          return;
+        }
+
+        //Filter
+        var filter_value = fil;
+        if (filter_value == "") {
+          filter_value = "*" //Full search if filter field is empty
+        }
+
+        //Options
+        var offset_value = off;
+        var limit_value = lim;
+        var sorted_value = 'ingestiondate' //sor
+        var order_value = 'desc' //ord
+
+        //COMPOSE REQUEST
+        var composedRequest =
+          self.baseUrl + self.apiUrl + self.filterParam + "=" + filter_value + '&'
+          + self.optionsParams[0] + "=" + offset_value + '&'
+          + self.optionsParams[1] + "=" + limit_value + '&'
+          + self.optionsParams[2] + "=" + sorted_value + '&'
+          + self.optionsParams[3] + "=" + order_value;
+
+        //Example of Composed Request
+        // https://scihub.copernicus.eu/dhus/api/stub/products?filter=s2*&offset=0&limit=10&sortedby=ingestiondate&order=desc
+        console.warn('126 ds requestUrl', composedRequest);
+
+        //PERFORM REQUEST
+        self._ctx.hm.sendRequest("GET", composedRequest).then(
+          function (result) {
+            self.model = [];
+            if (result.data.products.length <= 0) {
+              self._ctx.es.isEmptySearch = true;
+            }
+            else { //Inject useful info  in current model
+              result.data.products.forEach(function (e, index) {
+                self.model[index] = new ItemModel(e.identifier, e.thumbnail, e.uuid, self.baseUrl, e.summary);
+              });
+            }
+            self._ctx.mb.publish("search"); //Publish that search is completed on message broker to update the list
+            return result;
+          },
+          function (err) { return err; }
+        );
       }
     }
 
